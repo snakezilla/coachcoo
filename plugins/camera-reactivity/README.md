@@ -1,0 +1,1 @@
+# Camera Reactivity Plugin (empty)

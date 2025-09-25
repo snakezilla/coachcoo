@@ -1,0 +1,27 @@
+{
+    "id": "morning_v1",
+    "title": "Morning Routine",
+    "steps": [
+      {
+        "id": "greet",
+        "prompt": { "tts": "Good morning! Can you say hello?", "anim": "wave" },
+        "listen": { "mode": "confirm", "timeout_seconds": 10 },
+        "success": { "tts": "Nice hello!", "anim": "clap" },
+        "fallback": { "tts": "We will try again later.", "anim": "nod" }
+      },
+      {
+        "id": "brush_teeth",
+        "prompt": { "tts": "Time to brush your teeth. Say brush brush!", "anim": "point" },
+        "listen": { "mode": "confirm", "timeout_seconds": 12 },
+        "success": { "tts": "Sparkly!", "anim": "smile" },
+        "fallback": { "tts": "We can come back to brushing.", "anim": "nod" }
+      },
+      {
+        "id": "backpack",
+        "prompt": { "tts": "Grab your backpack please.", "anim": "point" },
+        "listen": { "mode": "confirm", "timeout_seconds": 10 },
+        "success": { "tts": "Ready to go!", "anim": "clap" },
+        "fallback": { "tts": "We will try again soon.", "anim": "nod" }
+      }
+    ]
+  }
