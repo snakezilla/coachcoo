@@ -34,3 +34,18 @@ The MVP demonstrates two guided routines with basic interaction logging.
 ```bash
 git clone https://github.com/snakezilla/coachcoo.git
 cd coachcoo
+
+
+## Run locally
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/snakezilla/coachcoo.git
+cd coachcoo
+
+# install dependencies
+npm install
+
+# start the Expo dev server
+npx expo start
