@@ -1,4 +1,0 @@
-export const CONFIG = {
-  LISTEN_TIMEOUT_MS: 10000,
-  AUTO_CONFIRM_AFTER_MS: 0,
-};

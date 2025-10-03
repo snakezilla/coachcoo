@@ -1,71 +1,101 @@
 import * as SQLite from "expo-sqlite";
 
-let db: SQLite.SQLiteDatabase;
+let db: SQLite.SQLiteDatabase | null = null;
+let initPromise: Promise<void> | null = null;
 
-export function initDb() {
-  db = SQLite.openDatabase("buddy.db");
-  db.transaction((tx) => {
-    tx.executeSql(`CREATE TABLE IF NOT EXISTS child(
-      id TEXT PRIMARY KEY, display_name TEXT, created_at INT
-    );`);
-    tx.executeSql(`CREATE TABLE IF NOT EXISTS session(
-      id TEXT PRIMARY KEY, child_id TEXT, routine_id TEXT,
-      started_at INT, ended_at INT, engagement REAL, notes TEXT
-    );`);
-    tx.executeSql(`CREATE TABLE IF NOT EXISTS event(
-      id TEXT PRIMARY KEY, session_id TEXT, ts INT, step_id TEXT,
-      type TEXT, value_json TEXT
-    );`);
-  });
+export async function openDatabaseAsync(): Promise<SQLite.SQLiteDatabase> {
+  if (db) return db;
+  db = await SQLite.openDatabaseAsync("coachcoo.db");
+  return db;
 }
 
-export function exec(sql: string, args: any[] = []): Promise<void> {
-  return new Promise((res, rej) => {
-    db.transaction((tx) => tx.executeSql(sql, args, () => res(), (_, e) => { rej(e); return false; }));
-  });
+export async function initDb(): Promise<void> {
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    const database = await openDatabaseAsync();
+    await database.execAsync?.("PRAGMA foreign_keys = ON;");
+    await database.execAsync?.(`
+      CREATE TABLE IF NOT EXISTS child(
+        id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        created_at INT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS session(
+        id TEXT PRIMARY KEY,
+        child_id TEXT NOT NULL,
+        routine_id TEXT NOT NULL,
+        started_at INT NOT NULL,
+        ended_at INT,
+        engagement REAL,
+        notes TEXT,
+        FOREIGN KEY(child_id) REFERENCES child(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS event(
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        routine_id TEXT NOT NULL,
+        ts INT NOT NULL,
+        step_id TEXT,
+        type TEXT NOT NULL,
+        value_json TEXT,
+        FOREIGN KEY(session_id) REFERENCES session(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS memory(
+        child_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        score REAL NOT NULL DEFAULT 1,
+        updated_at INT NOT NULL,
+        PRIMARY KEY(child_id, key),
+        FOREIGN KEY(child_id) REFERENCES child(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS convo(
+        child_id TEXT NOT NULL,
+        id TEXT PRIMARY KEY,
+        ts INT NOT NULL,
+        role TEXT NOT NULL,
+        text TEXT NOT NULL,
+        FOREIGN KEY(child_id) REFERENCES child(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_event_session_ts ON event(session_id, ts);
+      CREATE INDEX IF NOT EXISTS idx_memory_child_score ON memory(child_id, score DESC, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_convo_child_ts ON convo(child_id, ts DESC);
+    `);
+  })();
+  return initPromise;
 }
 
-export function query<T = any>(sql: string, args: any[] = []): Promise<T[]> {
-  return new Promise((res, rej) => {
-    db.readTransaction((tx) =>
-      tx.executeSql(sql, args, (_, { rows }) => res(rows._array as T[]), (_, e) => { rej(e); return false; })
-    );
-  });
+export function whenDbReady(): Promise<void> {
+  return initPromise ?? Promise.resolve();
 }
 
-export async function logEvent(e: {
-  id: string; session_id: string; ts: number; step_id: string; type: string; value: any;
-}) {
-  await exec(
-    `INSERT INTO event(id,session_id,ts,step_id,type,value_json) VALUES (?,?,?,?,?,?)`,
-    [e.id, e.session_id, e.ts, e.step_id, e.type, JSON.stringify(e.value ?? {})]
-  );
+async function requireDb(): Promise<SQLite.SQLiteDatabase> {
+  const database = db ?? (await openDatabaseAsync());
+  if (!database) {
+    throw new Error("SQLite database is not available");
+  }
+  return database;
 }
 
-export async function createSession(s: {
-  id: string; child_id: string; routine_id: string; started_at: number;
-}) {
-  await exec(
-    `INSERT INTO session(id, child_id, routine_id, started_at, ended_at, engagement, notes)
-     VALUES(?,?,?,?,NULL,NULL,NULL)`,
-    [s.id, s.child_id, s.routine_id, s.started_at]
-  );
+export async function exec(sql: string, params: SQLite.SQLiteBindParams = []): Promise<void> {
+  const database = await requireDb();
+  await database.runAsync?.(sql, params);
 }
 
-export async function endSession(id: string, ended_at: number, engagement: number) {
-  await exec(`UPDATE session SET ended_at=?, engagement=? WHERE id=?`, [ended_at, engagement, id]);
+export async function query<T = Record<string, unknown>>(
+  sql: string,
+  params: SQLite.SQLiteBindParams = []
+): Promise<T[]> {
+  const database = await requireDb();
+  const rows = await database.getAllAsync?.(sql, params);
+  return (rows ?? []) as T[];
 }
 
-export async function purgeAll() {
-  await exec(`DELETE FROM event;`);
-  await exec(`DELETE FROM session;`);
-  // Keep children to avoid retyping names, or clear if desired:
-  // await exec(`DELETE FROM child;`);
+export async function closeDb(): Promise<void> {
+  if (!db) return;
+  await db.closeAsync?.();
+  db = null;
+  initPromise = null;
 }
 
-export async function getLatestChild(): Promise<{ id: string; display_name: string } | undefined> {
-  const rows = await query<{ id: string; display_name: string }>(
-    `SELECT id, display_name FROM child ORDER BY created_at DESC LIMIT 1`
-  );
-  return rows[0];
-}
+export * from "./models";

@@ -1,8 +1,0 @@
-{
-  "id": "greetings_v1",
-  "title": "Entryway Greetings",
-  "steps": [
-    { "id": "wave", "prompt": { "tts": "Can you wave hello?", "anim": "wave" }, "listen": { "mode": "confirm", "timeout_seconds": 10 }, "success": { "tts": "Nice wave!", "anim": "clap" }, "fallback": { "tts": "We will try again later.", "anim": "nod" } },
-    { "id": "name", "prompt": { "tts": "Say your name loud and proud!", "anim": "point" }, "listen": { "mode": "confirm", "timeout_seconds": 12 }, "success": { "tts": "Great to meet you!", "anim": "smile" }, "fallback": { "tts": "We can try again later.", "anim": "nod" } }
-  ]
-}

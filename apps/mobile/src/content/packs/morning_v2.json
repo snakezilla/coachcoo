@@ -1,0 +1,123 @@
+{
+  "id": "morning_v2",
+  "title": "Morning High Five",
+  "globals": {
+    "listen": {
+      "timeoutMs": 12000
+    },
+    "reinforcement": {
+      "pointsPerStep": 1,
+      "celebrate": "Great start!"
+    }
+  },
+  "steps": [
+    {
+      "id": "wake_checkin",
+      "prompt": {
+        "anim": "point_right",
+        "tts": "Good morning {{child.name}}! Tell me how you are feeling right now.",
+        "ttsVariants": [
+          {
+            "text": "Morning {{child.name}}! How's your energy today?"
+          },
+          {
+            "text": "Hi {{child.nickname}}! Give me a quick feeling check-in.",
+            "weight": 0.6
+          }
+        ]
+      },
+      "listen": {
+        "keywords": ["good", "ready", "sleepy", "tired"]
+      },
+      "onHeard": {
+        "next": "brush_plan",
+        "celebrate": {
+          "anim": "clap",
+          "tts": "Love hearing that!"
+        },
+        "reward": {
+          "points": 1
+        }
+      },
+      "onTimeout": {
+        "retry": {
+          "max": 2,
+          "promptOverride": {
+            "anim": "point_right",
+            "tts": "If words are hard, give me a thumbs up or say one word for me."
+          }
+        }
+      }
+    },
+    {
+      "id": "brush_plan",
+      "prompt": {
+        "anim": "idle",
+        "tts": "Next up is teeth time! Say \"brush brush brush\" when you have your toothbrush in hand.",
+        "ttsVariants": [
+          {
+            "text": "Grab that brush and tell me \"brush brush\" when you're ready."
+          }
+        ]
+      },
+      "listen": {
+        "keywords": ["brush", "ready"]
+      },
+      "onHeard": {
+        "next": "goal_for_day",
+        "celebrate": {
+          "anim": "confetti",
+          "tts": "Shiny smiles incoming!"
+        },
+        "reward": {
+          "points": 1,
+          "sticker": "tooth"
+        }
+      },
+      "onTimeout": {
+        "retry": {
+          "max": 2,
+          "promptOverride": {
+            "anim": "point_right",
+            "tts": "Hold the brush up high and give me a \"ready\" when you're set."
+          }
+        }
+      }
+    },
+    {
+      "id": "goal_for_day",
+      "prompt": {
+        "anim": "idle",
+        "tts": "What's one awesome thing you want to do today?",
+        "ttsVariants": [
+          {
+            "text": "Tell me one cool thing you will try today, {{child.name}}."
+          }
+        ]
+      },
+      "listen": {
+        "keywords": ["play", "learn", "read", "fun", "help"]
+      },
+      "shaping": {
+        "requiredSuccesses": 1,
+        "maxAttempts": 3
+      },
+      "onHeard": {
+        "celebrate": {
+          "anim": "confetti",
+          "tts": "Yes! Let's make it happen."
+        },
+        "reward": {
+          "points": 2,
+          "sticker": "star"
+        }
+      },
+      "onTimeout": {
+        "celebrate": {
+          "anim": "clap",
+          "tts": "No worries, we'll dream together next time."
+        }
+      }
+    }
+  ]
+}

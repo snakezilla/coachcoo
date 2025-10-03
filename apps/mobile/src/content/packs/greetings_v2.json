@@ -1,0 +1,80 @@
+{
+  "id": "greetings_v2",
+  "title": "Greetings & Gratitude",
+  "globals": {
+    "listen": {
+      "timeoutMs": 10000
+    }
+  },
+  "steps": [
+    {
+      "id": "warm_hello",
+      "prompt": {
+        "anim": "idle",
+        "tts": "Hey {{child.name}}! Give me your biggest hello or wave your hand high!",
+        "ttsVariants": [
+          {
+            "text": "Hello {{child.nickname}}! Shout out a happy hello for me." 
+          }
+        ]
+      },
+      "listen": {
+        "keywords": ["hi", "hello", "hey"]
+      },
+      "onHeard": {
+        "next": "gratitude_share",
+        "celebrate": {
+          "anim": "clap",
+          "tts": "Whoa! I felt that hello from here."
+        },
+        "reward": {
+          "points": 1
+        }
+      },
+      "onTimeout": {
+        "retry": {
+          "max": 2,
+          "promptOverride": {
+            "anim": "point_right",
+            "tts": "Try a wave if words are tricky. I will see it!"
+          }
+        }
+      }
+    },
+    {
+      "id": "gratitude_share",
+      "prompt": {
+        "anim": "idle",
+        "tts": "Tell me one thing you're thankful for right now.",
+        "ttsVariants": [
+          {
+            "text": "What made you smile today? Share it with me!"
+          }
+        ]
+      },
+      "listen": {
+        "keywords": ["family", "friend", "toy", "game", "snack"]
+      },
+      "shaping": {
+        "requiredSuccesses": 1,
+        "maxAttempts": 2
+      },
+      "onHeard": {
+        "celebrate": {
+          "anim": "confetti",
+          "tts": "Grateful hearts are the best hearts!"
+        },
+        "reward": {
+          "points": 2,
+          "sticker": "heart"
+        }
+      },
+      "onTimeout": {
+        "celebrate": {
+          "anim": "clap",
+          "tts": "We can think of something together later."
+        }
+      }
+    }
+  ]
+}

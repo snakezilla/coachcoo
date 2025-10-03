@@ -1,11 +1,12 @@
-import * as Speech from "expo-speech";
-
-export async function speak(text: string) {
-  return new Promise<void>((resolve) => {
-    Speech.speak(text, { onDone: () => resolve() });
-  });
+export interface TtsSpeakOptions {
+  voice?: string;
+  rate?: number;
+  pitch?: number;
 }
 
-export function stopSpeak() {
-  Speech.stop();
+export interface ITts {
+  speak(text: string, options?: TtsSpeakOptions): Promise<void>;
+  stop(): Promise<void> | void;
 }
+
+export { createExpoTts } from "./expoTts";
