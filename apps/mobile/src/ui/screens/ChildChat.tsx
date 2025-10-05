@@ -12,14 +12,16 @@ import {
   View,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as Speech from "expo-speech";
 
 import AvatarView, { AvatarRef } from "../components/AvatarView";
+import type { Emotion } from "../avatar/AvatarDriver";
 import { RootStackParamList } from "../navigation/types";
 import { useAppStore } from "../../state/store";
 import { recentTurns } from "../../services/memory";
 import type { ConversationTurn } from "../../services/memory";
 import { chat } from "../../services/llm";
-import { createExpoTts } from "../../services/tts";
+import { synthesize, playAudio } from "../../services/tts";
 
 const BUTTON_LABEL = "Talk";
 
@@ -32,11 +34,37 @@ export const ChildChatScreen: React.FC<ChildChatParams> = ({ route }) => {
   );
   const avatarRef = React.useRef<AvatarRef>(null);
   const scrollRef = React.useRef<ScrollView>(null);
-  const tts = React.useMemo(() => createExpoTts(), []);
+  type SoundHandle = Awaited<ReturnType<typeof playAudio>>["sound"];
+  const activeSoundRef = React.useRef<SoundHandle>(null);
+  const speechTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [messages, setMessages] = React.useState<ConversationTurn[]>([]);
   const [input, setInput] = React.useState("");
   const [pending, setPending] = React.useState(false);
+
+  const stopPlayback = React.useCallback(async () => {
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current);
+      speechTimerRef.current = null;
+    }
+    Speech.stop();
+    avatarRef.current?.stopSpeech();
+    const sound = activeSoundRef.current;
+    if (sound) {
+      sound.setOnPlaybackStatusUpdate?.(() => undefined);
+      try {
+        await sound.stopAsync();
+      } catch (error) {
+        console.warn("[coach-coo] stopAsync failed", error);
+      }
+      try {
+        await sound.unloadAsync();
+      } catch (error) {
+        console.warn("[coach-coo] unloadAsync failed", error);
+      }
+      activeSoundRef.current = null;
+    }
+  }, []);
 
   const loadHistory = React.useCallback(async () => {
     const turns = await recentTurns(childId, 20);
@@ -51,10 +79,12 @@ export const ChildChatScreen: React.FC<ChildChatParams> = ({ route }) => {
   }, [loadHistory]);
 
   React.useEffect(() => {
+    const avatar = avatarRef.current;
     return () => {
-      void tts.stop?.();
+      stopPlayback().catch(() => undefined);
+      avatar?.dispose();
     };
-  }, [tts]);
+  }, [stopPlayback]);
 
   const handleSend = React.useCallback(async () => {
     const trimmed = input.trim();
@@ -78,21 +108,49 @@ export const ChildChatScreen: React.FC<ChildChatParams> = ({ route }) => {
     avatarRef.current?.setEmotion("thinking");
 
     try {
+      await stopPlayback();
       const reply = await chat(childId, trimmed);
       await loadHistory();
 
-      avatarRef.current?.speakStop();
-      avatarRef.current?.speakStart(reply);
-      await tts.speak(reply);
-      avatarRef.current?.speakStop();
-      avatarRef.current?.setEmotion("encourage");
+      const emotion: Emotion = /great|good|awesome|yay|congrats|well done/i.test(reply)
+        ? "happy"
+        : "encourage";
+      avatarRef.current?.setEmotion(emotion);
+      if (/congrats|great job|well done/i.test(reply)) {
+        avatarRef.current?.playGesture("confetti");
+      }
+
+      const tts = await synthesize(reply);
+      avatarRef.current?.startSpeech(tts.visemes);
+
+      const { sound } = await playAudio(tts.audioUri);
+      activeSoundRef.current = sound ?? null;
+      sound?.setOnPlaybackStatusUpdate?.((status) => {
+        if (!status.isLoaded) return;
+        if ((status as any).didJustFinish) {
+          void stopPlayback().finally(() => {
+            avatarRef.current?.setEmotion("idle");
+          });
+        }
+      });
+
+      if (speechTimerRef.current) {
+        clearTimeout(speechTimerRef.current);
+      }
+      speechTimerRef.current = setTimeout(() => {
+        void stopPlayback().finally(() => {
+          avatarRef.current?.setEmotion("idle");
+        });
+      }, Math.max(500, tts.durationMs + 200));
     } catch (error) {
       console.warn("[coach-coo] chat send error", error);
+      await stopPlayback();
       Alert.alert("Chat", (error as Error)?.message ?? "Unable to chat right now.");
+      avatarRef.current?.setEmotion("idle");
     } finally {
       setPending(false);
     }
-  }, [avatarRef, childId, input, loadHistory, pending, tts]);
+  }, [childId, input, loadHistory, pending, stopPlayback]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

@@ -6,10 +6,11 @@ import { RootStackParamList } from "../navigation/types";
 import AvatarView, { AvatarRef } from "../components/AvatarView";
 import { ConfirmBar } from "../components/ConfirmBar";
 import { RewardStars } from "../components/RewardStars";
+import * as Speech from "expo-speech";
 import { useAppStore } from "../../state/store";
 import { RoutineRunner, RunnerSnapshot } from "../../engine/runtime/runner";
 import { validateRoutine } from "../../engine/runtime/validators";
-import { createExpoTts } from "../../services/tts";
+import { synthesize, playAudio } from "../../services/tts";
 import { createWhisperStt, createStubStt } from "../../services/stt";
 import { createRmsVad } from "../../services/vad";
 import { runtimeSecrets } from "../../config/secrets";
@@ -42,6 +43,83 @@ export const ChildAvatarScreen: React.FC<Props> = ({ navigation, route }) => {
   const runnerRef = React.useRef<RoutineRunner | null>(null);
   const completionGuard = React.useRef(false);
   const avatarRef = React.useRef<AvatarRef>(null);
+  type SoundHandle = Awaited<ReturnType<typeof playAudio>>["sound"];
+  const activeSoundRef = React.useRef<SoundHandle>(null);
+  const speechTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechResolveRef = React.useRef<(() => void) | null>(null);
+
+  const clearSpeechTimer = React.useCallback(() => {
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current);
+      speechTimerRef.current = null;
+    }
+  }, []);
+
+  const cleanupSound = React.useCallback(async () => {
+    const sound = activeSoundRef.current;
+    if (sound) {
+      sound.setOnPlaybackStatusUpdate?.(() => undefined);
+      try {
+        await sound.stopAsync();
+      } catch (error) {
+        console.warn("[coach-coo] stopAsync failed", error);
+      }
+      try {
+        await sound.unloadAsync();
+      } catch (error) {
+        console.warn("[coach-coo] unloadAsync failed", error);
+      }
+      activeSoundRef.current = null;
+    }
+  }, []);
+
+  const resolveSpeech = React.useCallback(() => {
+    if (speechResolveRef.current) {
+      speechResolveRef.current();
+      speechResolveRef.current = null;
+    }
+  }, []);
+
+  const stopPlayback = React.useCallback(async () => {
+    clearSpeechTimer();
+    Speech.stop();
+    await cleanupSound();
+    avatarRef.current?.stopSpeech();
+    resolveSpeech();
+  }, [cleanupSound, clearSpeechTimer, resolveSpeech]);
+
+  const runSpeech = React.useCallback(
+    async (text: string) => {
+      await stopPlayback();
+      if (!text) return;
+
+      try {
+        const playback = await synthesize(text);
+        avatarRef.current?.startSpeech(playback.visemes);
+        const { sound } = await playAudio(playback.audioUri);
+        activeSoundRef.current = sound ?? null;
+
+        await new Promise<void>((resolve) => {
+          speechResolveRef.current = resolve;
+          clearSpeechTimer();
+          speechTimerRef.current = setTimeout(() => {
+            stopPlayback().catch(() => undefined);
+          }, Math.max(500, playback.durationMs + 200));
+
+          sound?.setOnPlaybackStatusUpdate?.((status) => {
+            if (!status.isLoaded) return;
+            if ((status as any).didJustFinish) {
+              stopPlayback().catch(() => undefined);
+            }
+          });
+        });
+      } catch (error) {
+        console.warn("[coach-coo] Failed to synthesize routine prompt", error);
+        resolveSpeech();
+      }
+    },
+    [clearSpeechTimer, stopPlayback, resolveSpeech]
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -77,7 +155,10 @@ export const ChildAvatarScreen: React.FC<Props> = ({ navigation, route }) => {
         }
 
         const useStub = USE_STUB_LISTENER || !runtimeSecrets.sttEnabled || ADAPTERS.stt === "stub";
-        const tts = createExpoTts();
+        const tts = {
+          speak: runSpeech,
+          stop: stopPlayback,
+        };
         if (!useStub && !runtimeSecrets.OPENAI_API_KEY) {
           throw new Error("OpenAI API key missing for Whisper STT");
         }
@@ -134,7 +215,7 @@ export const ChildAvatarScreen: React.FC<Props> = ({ navigation, route }) => {
       void runner?.dispose();
       void vad.stop();
     };
-  }, [childId, currentChild, navigation, routineId, sessionId, setCurrentChild]);
+  }, [childId, currentChild, navigation, routineId, runSpeech, sessionId, setCurrentChild, stopPlayback]);
 
   React.useEffect(() => {
     if (!snapshot) return;
@@ -150,8 +231,6 @@ export const ChildAvatarScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [finishSessionInStore, navigation, sessionId, snapshot]);
 
-  const prevStatusRef = React.useRef<RunnerSnapshot["status"] | null>(null);
-  const lastPromptRef = React.useRef<string | null>(null);
   const lastCelebrationRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -159,37 +238,31 @@ export const ChildAvatarScreen: React.FC<Props> = ({ navigation, route }) => {
     const avatar = avatarRef.current;
     if (!avatar) return;
 
-    const { status, promptText } = snapshot;
+    const { status } = snapshot;
 
     if (status === "prompting") {
-      if (promptText && lastPromptRef.current !== promptText) {
-        avatar.speakStop();
-        avatar.speakStart(promptText);
-        lastPromptRef.current = promptText;
-      }
       avatar.setEmotion("encourage");
-    } else {
-      if (prevStatusRef.current === "prompting") {
-        avatar.speakStop();
-        lastPromptRef.current = null;
-      }
-      if (status === "listening") {
-        avatar.setEmotion("thinking");
-      } else if (status === "waiting-confirm") {
-        avatar.setEmotion("encourage");
-      } else if (status === "completed") {
-        avatar.setEmotion("celebrate");
-      } else if (status === "aborted") {
-        avatar.setEmotion("sad");
-      } else if (status === "error") {
-        avatar.setEmotion("sad");
-      } else if (status === "idle") {
-        avatar.setEmotion("neutral");
-      }
+    } else if (status === "listening") {
+      avatar.setEmotion("thinking");
+    } else if (status === "waiting-confirm") {
+      avatar.setEmotion("encourage");
+    } else if (status === "completed") {
+      avatar.setEmotion("happy");
+    } else if (status === "aborted" || status === "error") {
+      avatar.setEmotion("thinking");
+    } else if (status === "idle") {
+      avatar.setEmotion("idle");
     }
 
-    prevStatusRef.current = status;
   }, [snapshot]);
+
+  React.useEffect(() => {
+    const avatar = avatarRef.current;
+    return () => {
+      stopPlayback().catch(() => undefined);
+      avatar?.dispose();
+    };
+  }, [stopPlayback]);
 
   React.useEffect(() => {
     if (!snapshot) return;
@@ -198,13 +271,13 @@ export const ChildAvatarScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const celebrateKey = snapshot.celebrateAnim ? `${snapshot.sessionId}-${snapshot.stepIndex}-${snapshot.celebrateAnim}` : undefined;
     if (celebrateKey && lastCelebrationRef.current !== celebrateKey) {
-      avatar.setEmotion("celebrate");
-      avatar.play("clap");
+      avatar.setEmotion("happy");
+      avatar.playGesture("confetti");
       lastCelebrationRef.current = celebrateKey;
     }
 
     if (snapshot.lastEventType === "timeout") {
-      avatar.setEmotion("sad");
+      avatar.setEmotion("thinking");
     }
   }, [snapshot]);
 

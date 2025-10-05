@@ -1,8 +1,11 @@
+// App.tsx
+import "react-native-gesture-handler"; // MUST be first
 import React from "react";
 import { View, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { ParentHome } from "./src/ui/screens/ParentHome";
 import { ChildAvatarScreen } from "./src/ui/screens/ChildAvatar";
@@ -30,42 +33,40 @@ export default function App() {
     };
   }, []);
 
-  if (!ready) {
-    return (
-      <SafeAreaProvider>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: true }}>
-          <Stack.Screen
-            name="ParentHome"
-            component={ParentHome}
-            options={{ title: "Buddy • Parent" }}
-          />
-          <Stack.Screen
-            name="ChildAvatar"
-            component={ChildAvatarScreen}
-            options={{ title: "Buddy • Avatar" }}
-          />
-          <Stack.Screen
-            name="ChildChat"
-            component={ChildChatScreen}
-            options={{ title: "Buddy • Chat" }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{ title: "Settings" }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        {!ready ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator size="large" />
+          </View>
+        ) : (
+          <NavigationContainer>
+            <Stack.Navigator screenOptions={{ headerShown: true }}>
+              <Stack.Screen
+                name="ParentHome"
+                component={ParentHome}
+                options={{ title: "Buddy • Parent" }}
+              />
+              <Stack.Screen
+                name="ChildAvatar"
+                component={ChildAvatarScreen}
+                options={{ title: "Buddy • Avatar" }}
+              />
+              <Stack.Screen
+                name="ChildChat"
+                component={ChildChatScreen}
+                options={{ title: "Buddy • Chat" }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ title: "Settings" }}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        )}
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -7,14 +7,23 @@ export interface RuntimeSecrets {
   forceStubListener: boolean;
 }
 
-function readOpenAiKey(): string {
-  const envKey = typeof process.env.EXPO_PUBLIC_OPENAI_KEY === "string" ? process.env.EXPO_PUBLIC_OPENAI_KEY : undefined;
+function readSecret(key: string): string {
+  const envVar = typeof process.env[key] === "string" ? (process.env[key] as string) : undefined;
+  const expoPublic = typeof process.env[`EXPO_PUBLIC_${key}`] === "string" ? (process.env[`EXPO_PUBLIC_${key}`] as string) : undefined;
   const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
-  const configKey = typeof extra?.OPENAI_API_KEY === "string" ? (extra.OPENAI_API_KEY as string) : undefined;
-  return (envKey ?? configKey ?? "").trim();
+  const configKey = typeof extra?.[key] === "string" ? (extra[key] as string) : undefined;
+  return (expoPublic ?? envVar ?? configKey ?? "").trim();
 }
 
-export const OPENAI_API_KEY = readOpenAiKey();
+export const OPENAI_API_KEY = readSecret("OPENAI_API_KEY");
+const ELEVENLABS_API_KEY = readSecret("ELEVENLABS_API_KEY");
+const ELEVENLABS_VOICE_ID = readSecret("ELEVENLABS_VOICE_ID");
+
+export const SECRETS = {
+  OPENAI_API_KEY,
+  ELEVENLABS_API_KEY,
+  ELEVENLABS_VOICE_ID,
+};
 
 if (!OPENAI_API_KEY) {
   console.warn(

@@ -10,7 +10,6 @@ import {
   StepEvent,
   StepEventType,
 } from "../stateMachine/types";
-import { ITts } from "../../services/tts";
 import { IStt } from "../../services/stt";
 import { IVad } from "../../services/vad";
 import { RunnerLogger } from "../../services/db/models";
@@ -59,8 +58,13 @@ export interface RunnerOptions {
   useStubListener?: boolean;
 }
 
+export interface RunnerTtsAdapter {
+  speak(text: string): Promise<void>;
+  stop?(): Promise<void>;
+}
+
 export interface RunnerDependencies {
-  tts: ITts;
+  tts: RunnerTtsAdapter;
   stt?: IStt | null;
   vad?: IVad | null;
   logger: RunnerLogger;
@@ -175,7 +179,9 @@ export class RoutineRunner {
         reason,
       });
       this.updateSnapshot({ status: "aborted", currentStepId: undefined, stepIndex: this.routine.steps.length });
-      await this.deps.tts.stop?.();
+      if (this.deps.tts.stop) {
+        await this.deps.tts.stop();
+      }
     });
   }
 
@@ -184,7 +190,9 @@ export class RoutineRunner {
     this.disposed = true;
     this.stopListening();
     this.cancelAutoConfirm();
-    await this.deps.tts.stop?.();
+    if (this.deps.tts.stop) {
+      await this.deps.tts.stop();
+    }
     await this.processing.catch(noop);
   }
 
@@ -337,7 +345,9 @@ export class RoutineRunner {
       await this.logEvent("routine_completed", {
         engagement,
       });
-      await this.deps.tts.stop?.();
+      if (this.deps.tts.stop) {
+        await this.deps.tts.stop();
+      }
       this.cancelAutoConfirm();
       return;
     }

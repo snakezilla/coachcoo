@@ -1,10 +1,22 @@
-export type Emotion = "neutral" | "happy" | "encourage" | "thinking" | "celebrate" | "sad";
+export type Emotion = "idle" | "happy" | "encourage" | "thinking";
+export type Gesture = "wave" | "confetti" | "thumbsUp";
 
-export interface AvatarDriver {
-  load(): Promise<void>;
-  setEmotion(emotion: Emotion): void;
-  speakStart(text: string): void;
-  speakStop(): void;
-  play(animation: "idle" | "wave" | "clap" | "nod"): void;
-  unload(): Promise<void>;
+export type Viseme = { t: number; idx?: number; openness?: number };
+export type TtsPlayback = {
+  audioUri: string;
+  durationMs: number;
+  visemes: Viseme[];
+};
+
+export interface AvatarDriverHandle {
+  setEmotion(e: Emotion): void;
+  playGesture(g: Gesture): void;
+  startSpeech(v: Viseme[]): void;
+  stopSpeech(): void;
+  dispose(): void;
 }
+
+export type AvatarDriverProps = {
+  style?: any;
+  debug?: boolean;
+};

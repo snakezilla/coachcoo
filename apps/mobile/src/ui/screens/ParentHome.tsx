@@ -188,7 +188,7 @@ export const ParentHome: React.FC = () => {
       <View style={styles.card}>
         <Text style={styles.label}>Admin</Text>
         <Pressable style={styles.link} onPress={handleStartChat}>
-          <Text style={styles.linkText}>Start Chat</Text>
+          <Text style={styles.linkText}>Open Coo Chat (Avatar Demo)</Text>
         </Pressable>
         <Pressable style={styles.link} onPress={() => navigation.navigate("Settings")}> 
           <Text style={styles.linkText}>Settings</Text>

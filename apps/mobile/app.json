@@ -8,9 +8,15 @@
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {"deploymentTarget": "13.4", 
+    "ios": {
+      "deploymentTarget": "13.4",
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mobile"
+      "bundleIdentifier": "com.anonymous.mobile",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "We use the microphone so your child can talk to the avatar.",
+        "NSSpeechRecognitionUsageDescription": "We use speech recognition to understand your child's responses."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +27,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "com.anonymous.mobile",
+      "permissions": ["RECORD_AUDIO"]
     },
     "web": {
       "output": "single",
@@ -44,6 +51,8 @@
     ],
     "extra": {
       "OPENAI_API_KEY": "${process.env.OPENAI_API_KEY}",
+      "ELEVENLABS_API_KEY": "${process.env.ELEVENLABS_API_KEY}",
+      "ELEVENLABS_VOICE_ID": "${process.env.ELEVENLABS_VOICE_ID}",
       "eas": {
         "projectId": "placeholder"
       }
