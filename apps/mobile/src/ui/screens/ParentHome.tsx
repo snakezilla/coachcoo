@@ -135,6 +135,16 @@ export const ParentHome: React.FC = () => {
     }
   }, [ensureChildProfile, navigation]);
 
+  const handleStartVoice = React.useCallback(async () => {
+    try {
+      const childProfile = await ensureChildProfile();
+      navigation.navigate("VoiceConversation", { childId: childProfile.id });
+    } catch (error) {
+      if ((error as Error)?.message === "missing_name") return;
+      Alert.alert("Voice", (error as Error)?.message ?? "Unable to start voice chat");
+    }
+  }, [ensureChildProfile, navigation]);
+
   const handleExport = React.useCallback(async () => {
     await exportEventsCsv();
   }, []);
@@ -189,6 +199,9 @@ export const ParentHome: React.FC = () => {
         <Text style={styles.label}>Admin</Text>
         <Pressable style={styles.link} onPress={handleStartChat}>
           <Text style={styles.linkText}>Open Coo Chat (Avatar Demo)</Text>
+        </Pressable>
+        <Pressable style={styles.link} onPress={handleStartVoice}>
+          <Text style={styles.linkText}>Start Voice Conversation (Beta)</Text>
         </Pressable>
         <Pressable style={styles.link} onPress={() => navigation.navigate("Settings")}> 
           <Text style={styles.linkText}>Settings</Text>

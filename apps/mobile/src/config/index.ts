@@ -41,8 +41,8 @@ export type FeatureFlags = typeof FEATURE_FLAGS;
 
 // Global runtime config
 export const CONFIG = {
-  AVATAR_DRIVER: "rive" as const, // ensures we use RiveAvatarDriver
-  TTS_PROVIDER: "expo" as const, // ✅ override to Expo TTS
+  AVATAR_DRIVER: "rive" as const,
+  TTS_PROVIDER: (SECRETS.ELEVENLABS_API_KEY ? "elevenlabs" : "stub") as "elevenlabs" | "stub",
   TTS_SAMPLE_RATE: 22050,
   VISEME_FRAME_MS: 40,
 };

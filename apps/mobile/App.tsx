@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ParentHome } from "./src/ui/screens/ParentHome";
 import { ChildAvatarScreen } from "./src/ui/screens/ChildAvatar";
 import { ChildChatScreen } from "./src/ui/screens/ChildChat";
+import { VoiceConversationScreen } from "./src/ui/screens/VoiceConversation";
 import { SettingsScreen } from "./src/ui/screens/Settings";
 import { initDb } from "./src/services/db";
 import { RootStackParamList } from "./src/ui/navigation/types";
@@ -57,6 +58,11 @@ export default function App() {
                 name="ChildChat"
                 component={ChildChatScreen}
                 options={{ title: "Buddy • Chat" }}
+              />
+              <Stack.Screen
+                name="VoiceConversation"
+                component={VoiceConversationScreen}
+                options={{ title: "Buddy • Voice" }}
               />
               <Stack.Screen
                 name="Settings"
